@@ -3,6 +3,7 @@
 **Important: Read this entire document before starting.** This document covers:
 - [Technical Guidelines](#technical-guidelines) - Schema compliance rules and validation requirements
 - [Document Content Patterns](#document-content-patterns) - XML patterns for headings, lists, tables, formatting, etc.
+- [Mathematical Equations (OMML)](#mathematical-equations-omml) - Native Word equations via Office Math Markup Language
 - [Document Library (Python)](#document-library-python) - Recommended approach for OOXML manipulation with automatic infrastructure setup
 - [Tracked Changes (Redlining)](#tracked-changes-redlining) - XML patterns for implementing tracked changes
 
@@ -262,6 +263,292 @@ When adding content, update these files:
   </w:rPr>
 </w:style>
 ```
+
+## Mathematical Equations (OMML)
+
+Office Math Markup Language (OMML) produces **native Word equations** — fully editable in the Word Equation Editor, compatible with all Word versions, and correctly rendered in PDF export. **Never use images as substitutes for equations** when native Word equations are required.
+
+### Namespace Declaration (CRITICAL)
+
+Before inserting any OMML, verify that `xmlns:m` is declared on the root `<w:document>` element in `word/document.xml`. If missing, add it:
+
+```xml
+<w:document xmlns:wpc="..." xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" ...>
+```
+
+Without this namespace, Word will refuse to open the document.
+
+### Equation Placement
+
+Omit `<m:oMathPara>` for **inline equations** (within a `<w:p>` that also contains text runs). Use `<m:oMathPara>` with `<m:jc m:val="center"/>` for **display (block) equations** in their own paragraph:
+
+```xml
+<!-- INLINE equation — inside a paragraph with surrounding text -->
+<w:p>
+  <w:r><w:t xml:space="preserve">The formula </w:t></w:r>
+  <m:oMath xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:r><m:t>E=mc</m:t></m:r>
+    <m:sSup>
+      <m:e><m:r><m:t>c</m:t></m:r></m:e>
+      <m:sup><m:r><m:t>2</m:t></m:r></m:sup>
+    </m:sSup>
+  </m:oMath>
+  <w:r><w:t xml:space="preserve"> was derived by Einstein.</w:t></w:r>
+</w:p>
+
+<!-- DISPLAY (block) equation — centered, in its own paragraph -->
+<w:p>
+  <w:pPr><w:jc w:val="center"/></w:pPr>
+  <m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr>
+    <m:oMath>
+      <!-- equation body goes here -->
+    </m:oMath>
+  </m:oMathPara>
+</w:p>
+```
+
+### OMML Building Blocks
+
+The OMML elements below can be combined freely to build any formula. All examples assume the `m:` prefix is already bound to the math namespace.
+
+**Fraction (`<m:f>`):**
+```xml
+<m:f>
+  <m:num><m:r><m:t>a</m:t></m:r></m:num>
+  <m:den><m:r><m:t>b</m:t></m:r></m:den>
+</m:f>
+```
+
+**Superscript / Subscript (`<m:sSup>`, `<m:sSub>`, `<m:sSubSup>`):**
+```xml
+<!-- x^2 -->
+<m:sSup>
+  <m:e><m:r><m:t>x</m:t></m:r></m:e>
+  <m:sup><m:r><m:t>2</m:t></m:r></m:sup>
+</m:sSup>
+
+<!-- x_i -->
+<m:sSub>
+  <m:e><m:r><m:t>x</m:t></m:r></m:e>
+  <m:sub><m:r><m:t>i</m:t></m:r></m:sub>
+</m:sSub>
+
+<!-- x_i^2 -->
+<m:sSubSup>
+  <m:e><m:r><m:t>x</m:t></m:r></m:e>
+  <m:sub><m:r><m:t>i</m:t></m:r></m:sub>
+  <m:sup><m:r><m:t>2</m:t></m:r></m:sup>
+</m:sSubSup>
+```
+
+**Square root (`<m:rad>` without degree):**
+```xml
+<m:rad>
+  <m:radPr><m:degHide m:val="1"/></m:radPr>
+  <m:deg/>
+  <m:e><m:r><m:t>x</m:t></m:r></m:e>
+</m:rad>
+```
+
+**N-th root (`<m:rad>` with degree):**
+```xml
+<m:rad>
+  <m:deg><m:r><m:t>n</m:t></m:r></m:deg>
+  <m:e><m:r><m:t>x</m:t></m:r></m:e>
+</m:rad>
+```
+
+**Integral (`<m:nary>` with ∫):**
+```xml
+<m:nary>
+  <m:naryPr>
+    <m:chr m:val="&#x222B;"/>
+    <m:limLoc m:val="subSup"/>
+  </m:naryPr>
+  <m:sub><m:r><m:t>a</m:t></m:r></m:sub>
+  <m:sup><m:r><m:t>b</m:t></m:r></m:sup>
+  <m:e><m:r><m:t>f(x)dx</m:t></m:r></m:e>
+</m:nary>
+```
+
+**Sum (`<m:nary>` with ∑):**
+```xml
+<m:nary>
+  <m:naryPr>
+    <m:chr m:val="&#x2211;"/>
+    <m:limLoc m:val="undOvr"/>
+  </m:naryPr>
+  <m:sub><m:r><m:t>i=1</m:t></m:r></m:sub>
+  <m:sup><m:r><m:t>n</m:t></m:r></m:sup>
+  <m:e><m:r><m:t>f(x)</m:t></m:r></m:e>
+</m:nary>
+```
+
+**Product (`<m:nary>` with ∏):**
+```xml
+<m:nary>
+  <m:naryPr>
+    <m:chr m:val="&#x220F;"/>
+    <m:limLoc m:val="undOvr"/>
+  </m:naryPr>
+  <m:sub><m:r><m:t>i=1</m:t></m:r></m:sub>
+  <m:sup><m:r><m:t>n</m:t></m:r></m:sup>
+  <m:e><m:r><m:t>a_i</m:t></m:r></m:e>
+</m:nary>
+```
+
+**Limit (`<m:func>`):**
+```xml
+<m:func>
+  <m:funcPr/>
+  <m:fName>
+    <m:limLow>
+      <m:e><m:r><m:rPr><m:sty m:val="p"/></m:rPr><m:t>lim</m:t></m:r></m:e>
+      <m:lim>
+        <m:r><m:t>x&#x2192;0</m:t></m:r>
+      </m:lim>
+    </m:limLow>
+  </m:fName>
+  <m:e><m:r><m:t>f(x)</m:t></m:r></m:e>
+</m:func>
+```
+
+**Matrix (`<m:m>`):**
+```xml
+<!-- 2x2 matrix -->
+<m:m>
+  <m:mPr>
+    <m:mcs>
+      <m:mc><m:mcPr><m:count m:val="2"/><m:mcJc m:val="center"/></m:mcPr></m:mc>
+    </m:mcs>
+  </m:mPr>
+  <m:mr>
+    <m:e><m:r><m:t>a</m:t></m:r></m:e>
+    <m:e><m:r><m:t>b</m:t></m:r></m:e>
+  </m:mr>
+  <m:mr>
+    <m:e><m:r><m:t>c</m:t></m:r></m:e>
+    <m:e><m:r><m:t>d</m:t></m:r></m:e>
+  </m:mr>
+</m:m>
+```
+
+**Matrix with brackets — wrap `<m:m>` in `<m:d>`:**
+```xml
+<m:d>
+  <m:dPr>
+    <m:begChr m:val="("/>
+    <m:endChr m:val=")"/>
+  </m:dPr>
+  <m:e>
+    <!-- insert <m:m> here -->
+  </m:e>
+</m:d>
+```
+
+**Italic math text (default for variables):** Use `<m:rPr><m:sty m:val="i"/></m:rPr>` inside `<m:r>`.
+**Upright (roman) text:** Use `<m:sty m:val="p"/>` — needed for function names like sin, cos, lim.
+**Bold math:** Use `<m:sty m:val="b"/>` or `<m:sty m:val="bi"/>` (bold-italic).
+
+### Complete Display Equation Example
+
+Quadratic formula, centered, standalone:
+
+```xml
+<w:p>
+  <w:pPr><w:jc w:val="center"/></w:pPr>
+  <m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr>
+    <m:oMath>
+      <m:r><m:t>x=</m:t></m:r>
+      <m:f>
+        <m:num>
+          <m:r><m:t>-b&#xB1;</m:t></m:r>
+          <m:rad>
+            <m:radPr><m:degHide m:val="1"/></m:radPr>
+            <m:deg/>
+            <m:e>
+              <m:sSup>
+                <m:e><m:r><m:t>b</m:t></m:r></m:e>
+                <m:sup><m:r><m:t>2</m:t></m:r></m:sup>
+              </m:sSup>
+              <m:r><m:t>-4ac</m:t></m:r>
+            </m:e>
+          </m:rad>
+        </m:num>
+        <m:den><m:r><m:t>2a</m:t></m:r></m:den>
+      </m:f>
+    </m:oMath>
+  </m:oMathPara>
+</w:p>
+```
+
+### Inserting Equations via Document Library
+
+Use `insert_after()` or `replace_node()` from the Document library to insert OMML. Always declare the namespace inline on `<m:oMathPara>` or `<m:oMath>` if it is not already on the root element.
+
+```python
+from scripts.document import Document
+
+doc = Document('unpacked')
+
+# Insert a display equation after a specific paragraph
+node = doc["word/document.xml"].get_node(tag="w:p", contains="текст перед формулой")
+
+formula_xml = '''
+<w:p>
+  <w:pPr><w:jc w:val="center"/></w:pPr>
+  <m:oMathPara xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math">
+    <m:oMathParaPr><m:jc m:val="center"/></m:oMathParaPr>
+    <m:oMath>
+      <m:f>
+        <m:num><m:r><m:t>a</m:t></m:r></m:num>
+        <m:den><m:r><m:t>b</m:t></m:r></m:den>
+      </m:f>
+    </m:oMath>
+  </m:oMathPara>
+</w:p>
+'''
+
+doc["word/document.xml"].insert_after(node, formula_xml)
+doc.save()
+```
+
+### Common OMML Unicode Escapes
+
+| Symbol | Unicode | XML entity |
+|--------|---------|------------|
+| ± | U+00B1 | `&#xB1;` |
+| × | U+00D7 | `&#xD7;` |
+| ÷ | U+00F7 | `&#xF7;` |
+| → | U+2192 | `&#x2192;` |
+| ∞ | U+221E | `&#x221E;` |
+| ∫ | U+222B | `&#x222B;` |
+| ∑ | U+2211 | `&#x2211;` |
+| ∏ | U+220F | `&#x220F;` |
+| √ | U+221A | `&#x221A;` |
+| ≤ | U+2264 | `&#x2264;` |
+| ≥ | U+2265 | `&#x2265;` |
+| ≠ | U+2260 | `&#x2260;` |
+| α | U+03B1 | `&#x3B1;` |
+| β | U+03B2 | `&#x3B2;` |
+| γ | U+03B3 | `&#x3B3;` |
+| δ | U+03B4 | `&#x3B4;` |
+| π | U+03C0 | `&#x3C0;` |
+| σ | U+03C3 | `&#x3C3;` |
+| Δ | U+0394 | `&#x394;` |
+| Σ | U+03A3 | `&#x3A3;` |
+
+### Validation Checklist for OMML
+
+- [ ] `xmlns:m` is declared on `<w:document>` root
+- [ ] Display equations use `<m:oMathPara>` with `<m:jc m:val="center"/>` inside their own `<w:p>`
+- [ ] Inline equations use `<m:oMath>` directly inside `<w:p>` alongside `<w:r>` runs
+- [ ] Function names (sin, cos, lim, log, etc.) use `<m:sty m:val="p"/>` (upright, not italic)
+- [ ] Variables use default italic style or explicit `<m:sty m:val="i"/>`
+- [ ] Special symbols use XML entity escapes (e.g., `&#x221E;` not raw Unicode where encoding is ASCII)
+- [ ] Document opens without errors in Word after packing
 
 ## Document Library (Python)
 
