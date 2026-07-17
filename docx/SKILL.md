@@ -1,6 +1,6 @@
 ---
 name: docx
-description: "Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, and text extraction. When Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, or any other document tasks"
+description: "Comprehensive document creation, editing, and analysis with support for tracked changes, comments, formatting preservation, text extraction, and native Word mathematical equations (OMML). When Claude needs to work with professional documents (.docx files) for: (1) Creating new documents, (2) Modifying or editing content, (3) Working with tracked changes, (4) Adding comments, (5) Inserting native Word equations via OMML, or any other document tasks"
 license: Proprietary. LICENSE.txt has complete terms
 ---
 
@@ -59,6 +59,12 @@ When creating a new Word document from scratch, use **docx-js**, which allows yo
 1. **MANDATORY - READ ENTIRE FILE**: Read [`docx-js.md`](docx-js.md) (~500 lines) completely from start to finish. **NEVER set any range limits when reading this file.** Read the full file content for detailed syntax, critical formatting rules, and best practices before proceeding with document creation.
 2. Create a JavaScript/TypeScript file using Document, Paragraph, TextRun components (You can assume all dependencies are installed, but if not, refer to the dependencies section below)
 3. Export as .docx using Packer.toBuffer()
+
+> **Note on mathematical equations**: The docx-js library **cannot produce native Word (OMML) equations**. If the document requires mathematical formulas that must be editable in Word (e.g., academic papers, scientific reports), use the following hybrid approach:
+> 1. Create the base document structure with docx-js (text, headings, tables, images)
+> 2. After generating the .docx, unpack it and insert OMML equations using the Document library
+> 3. See the **"Mathematical Equations (OMML)"** section in [`ooxml.md`](ooxml.md) for patterns and templates
+> 4. **Never use images as substitutes for equations** when native Word equations are required
 
 ## Editing an existing Word document
 
